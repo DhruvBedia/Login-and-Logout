@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interactive User Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .dark-mode {
+      background-color: #1c1c1c;
+      color: #f0f0f0;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      margin: auto;
+      width: 350px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .dark-mode .box {
+      background: #2a2a2a;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+    }
+    input {
+      padding: 10px;
+      width: 90%;
+      margin: 10px 0;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    #profilePage {
+      display: none;
+    }
+    #loginForm, #registerForm {
+      display: none;
+    }
+    #taskList {
+      text-align: left;
+      margin-top: 15px;
+    }
+    .task-item {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Register -->
+<div class="box" id="registerForm">
+  <h2>Register</h2>
+  <input type="text" id="regUsername" placeholder="Username"><br>
+  <input type="password" id="regPassword" placeholder="Password"><br>
+  <button onclick="register()">Register</button>
+  <p id="regMsg" style="color:green;"></p>
+  <p>Already have an account? <a href="#" onclick="showLogin()">Login</a></p>
+</div>
+
+<!-- Login -->
+<div class="box" id="loginForm">
+  <h2>Login</h2>
+  <input type="text" id="loginUsername" placeholder="Username"><br>
+  <input type="password" id="loginPassword" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+  <p id="loginMsg" style="color:red;"></p>
+  <p>New user? <a href="#" onclick="showRegister()">Register</a></p>
+</div>
+
+<!-- Profile Page -->
+<div class="box" id="profilePage">
+  <h2 id="greeting"></h2>
+  <p>Welcome, <span id="displayUser"></span>!</p>
+  <div id="clock"></div>
+
+  <button onclick="toggleDetails()">Show/Hide Info</button>
+  <button onclick="editName()">Edit Username</button>
+  <button onclick="logout()">Logout</button>
+  <button onclick="toggleDarkMode()">🌙 Dark Mode</button>
+
+  <div id="profileDetails" style="display:none;">
+    <p><strong>Email:</strong> user@example.com</p>
+    <p><strong>Member Since:</strong> May 2025</p>
+  </div>
+
+  <hr>
+  <h3>My Tasks</h3>
+  <input type="text" id="newTask" placeholder="Add new task...">
+  <button onclick="addTask()">Add Task</button>
+  <div id="taskList"></div>
+</div>
+
+<script>
+  // Show login form initially
+  document.getElementById("loginForm").style.display = "block";
+  let currentUser = "";
+  let clockInterval;
+
+  function showLogin() {
+    document.getElementById("registerForm").style.display = "none";
+    document.getElementById("loginForm").style.display = "block";
+    document.getElementById("loginMsg").textContent = "";
+  }
+
+  function showRegister() {
+    document.getElementById("loginForm").style.display = "none";
+    document.getElementById("registerForm").style.display = "block";
+    document.getElementById("regMsg").textContent = "";
+  }
+
+  function register() {
+    const user = document.getElementById("regUsername").value.trim();
+    const pass = document.getElementById("regPassword").value;
+
+    if (!user || !pass) {
+      document.getElementById("regMsg").style.color = "red";
+      document.getElementById("regMsg").textContent = "Please fill in both fields.";
+      return;
+    }
+
+    if (localStorage.getItem("user_" + user)) {
+      document.getElementById("regMsg").style.color = "red";
+      document.getElementById("regMsg").textContent = "Username already exists!";
+    } else {
+      localStorage.setItem("user_" + user, pass);
+      document.getElementById("regMsg").style.color = "green";
+      document.getElementById("regMsg").textContent = "Registration successful!";
+      document.getElementById("regUsername").value = "";
+      document.getElementById("regPassword").value = "";
+    }
+  }
+
+  function login() {
+    const user = document.getElementById("loginUsername").value.trim();
+    const pass = document.getElementById("loginPassword").value;
+    const storedPass = localStorage.getItem("user_" + user);
+
+    if (!user || !pass) {
+      document.getElementById("loginMsg").textContent = "Please enter both fields.";
+      return;
+    }
+
+    if (storedPass === pass) {
+      currentUser = user;
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("profilePage").style.display = "block";
+      document.getElementById("displayUser").textContent = currentUser;
+      updateGreeting();
+      startClock();
+      loadTasks();
+    } else {
+      document.getElementById("loginMsg").textContent = "Invalid username or password.";
+    }
+  }
+
+  function logout() {
+    document.getElementById("profilePage").style.display = "none";
+    document.getElementById("loginForm").style.display = "block";
+    document.getElementById("loginUsername").value = "";
+    document.getElementById("loginPassword").value = "";
+    clearInterval(clockInterval);
+  }
+
+  function toggleDetails() {
+    const d = document.getElementById("profileDetails");
+    d.style.display = d.style.display === "none" ? "block" : "none";
+  }
+
+  function editName() {
+    const newName = prompt("Enter new username:", currentUser);
+    if (newName && newName.trim() !== "" && newName !== currentUser) {
+      const oldPass = localStorage.getItem("user_" + currentUser);
+      localStorage.removeItem("user_" + currentUser);
+      localStorage.setItem("user_" + newName.trim(), oldPass);
+      currentUser = newName.trim();
+      document.getElementById("displayUser").textContent = currentUser;
+      updateGreeting();
+    }
+  }
+
+  function updateGreeting() {
+    const hour = new Date().getHours();
+    let greeting = "Hello";
+    if (hour < 12) greeting = "Good morning";
+    else if (hour < 18) greeting = "Good afternoon";
+    else greeting = "Good evening";
+    document.getElementById("greeting").textContent = `${greeting}, ${currentUser}!`;
+  }
+
+  function startClock() {
+    const clock = document.getElementById("clock");
+    clockInterval = setInterval(() => {
+      const now = new Date();
+      clock.textContent = "Time: " + now.toLocaleTimeString();
+    }, 1000);
+  }
+
+  function addTask() {
+    const task = document.getElementById("newTask").value.trim();
+    if (task === "") return;
+    let tasks = JSON.parse(localStorage.getItem("tasks_" + currentUser)) || [];
+    tasks.push(task);
+    localStorage.setItem("tasks_" + currentUser, JSON.stringify(tasks));
+    document.getElementById("newTask").value = "";
+    loadTasks();
+  }
+
+  function loadTasks() {
+    const taskDiv = document.getElementById("taskList");
+    taskDiv.innerHTML = "";
+    const tasks = JSON.parse(localStorage.getItem("tasks_" + currentUser)) || [];
+    tasks.forEach((t, i) => {
+      const el = document.createElement("div");
+      el.className = "task-item";
+      el.innerHTML = `• ${t} <button onclick="deleteTask(${i})">❌</button>`;
+      taskDiv.appendChild(el);
+    });
+  }
+
+  function deleteTask(index) {
+    let tasks = JSON.parse(localStorage.getItem("tasks_" + currentUser)) || [];
+    tasks.splice(index, 1);
+    localStorage.setItem("tasks_" + currentUser, JSON.stringify(tasks));
+    loadTasks();
+  }
+
+  function toggleDarkMode() {
+    document.body.classList.toggle("dark-mode");
+  }
+</script>
+
+</body>
+</html>
